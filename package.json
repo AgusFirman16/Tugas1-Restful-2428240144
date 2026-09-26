@@ -1,0 +1,20 @@
+{
+  "name": "tugas1-restful-agus-firman",
+  "version": "1.0.0",
+  "private": true,
+  "description": "RESTful API kamar kos untuk tugas praktikum Sistem Informasi",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
