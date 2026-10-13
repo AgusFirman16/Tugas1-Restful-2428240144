@@ -12,9 +12,22 @@
     "node": ">=22"
   },
   "dependencies": {
-    "express": "^5.1.0"
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.5",
+    "express": "^5.2.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AgusFirman16/Tugas1-Restful-2428240144.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AgusFirman16/Tugas1-Restful-2428240144/issues"
+  },
+  "homepage": "https://github.com/AgusFirman16/Tugas1-Restful-2428240144#readme"
 }
