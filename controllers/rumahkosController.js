@@ -2,8 +2,8 @@ const rumahkosModel = require('../models/rumahkosModel');
 const { errorHttp } = require('../middlewares/errorHandler');
 
 exports.getAll = (req, res) => {
-  const { jurusan } = req.query;
-  res.json(rumahkosModel.getAll(jurusan));
+  const { lokasi } = req.query;
+  res.json(rumahkosModel.getAll(lokasi));
 };
 
 exports.getById = (req, res, next) => {
@@ -14,10 +14,12 @@ exports.getById = (req, res, next) => {
 };
 
 exports.create = (req, res, next) => {
-  const { nama, jurusan } = req.body;
-  if (!nama || !jurusan) return next(errorHttp(400, 'nama dan jurusan wajib diisi'));
+  const { nama, alamat, hargaPerBulan, fasilitas = [] } = req.body;
+  if (!nama || !alamat || !Number.isFinite(hargaPerBulan) || hargaPerBulan <= 0) {
+    return next(errorHttp(400, 'nama, alamat, dan hargaPerBulan yang valid wajib diisi'));
+  }
 
-  const baru = rumahkosModel.create({ nama, jurusan });
+  const baru = rumahkosModel.create({ nama, alamat, hargaPerBulan, fasilitas });
   res.status(201).json(baru);
 };
 
