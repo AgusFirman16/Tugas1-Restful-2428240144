@@ -2,6 +2,7 @@ const express = require('express');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const API_KEY = process.env.API_KEY || 'kunci-rahasia-paw2';
 
 app.use(express.json());
 
@@ -37,6 +38,14 @@ let nextId = 4;
 function sendError(res, status, message) {
   return res.status(status).json({ status: 'error', message, data: null });
 }
+
+app.use('/boarding-rooms', (req, res, next) => {
+  if (req.method === 'GET') return next();
+  if (req.get('x-api-key') !== API_KEY) {
+    return sendError(res, 401, 'API key tidak valid');
+  }
+  next();
+});
 
 function validateRoom(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
