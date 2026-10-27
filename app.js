@@ -1,9 +1,14 @@
-const express = require('express');
+require('dotenv').config();
 
+const express = require('express');
+const mongoose = require('mongoose');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || 'kunci-rahasia-paw2';
 
+mongoose.connect(process.env.DB_URI)
+  .then(() => console.log('MongoDB berhasil terhubung'))
+  .catch((err) => console.error('Gagal terhubung ke MongoDB:', err));
 app.use(express.json());
 
 // Data awal kamar kos untuk topik 26.
