@@ -6,15 +6,15 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "dev": "nodemon app.js"
+    "dev": "nodemon app.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=22"
   },
   "dependencies": {
     "dotenv": "^18.0.9",
-    "express": "^5.2.1",
-    "mongoose": "^9.11.4"
+    "express": "^5.2.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
