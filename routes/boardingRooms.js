@@ -1,12 +1,12 @@
 const express = require('express');
 const createBoardingRoomsController = require('../controllers/boardingRoomsController');
-const requireApiKey = require('../middlewares/requireApiKey');
+const cekApiKey = require('../middlewares/cekApiKey');
 
 function createBoardingRoomsRouter({ apiKey } = {}) {
   const router = express.Router();
   const controller = createBoardingRoomsController();
 
-  router.use(requireApiKey(apiKey));
+  router.use(cekApiKey(apiKey));
   router.get('/', controller.list);
   router.get('/:id', controller.getById);
   router.post('/', controller.create);
