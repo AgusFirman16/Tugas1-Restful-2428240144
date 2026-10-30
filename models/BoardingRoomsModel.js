@@ -2,6 +2,12 @@ const mongoose = require('mongoose');
 const TIPE_KAMAR = ['putra', 'putri', 'campur'];
 const boardingRoomSchema = new mongoose.Schema(
   {
+    id: {
+      type: Number,
+      required: true,
+      unique: true,
+      min: 1,
+    },
     nomorKamar: {
       type: String,
       required: [true, 'Field nomorKamar wajib diisi'],

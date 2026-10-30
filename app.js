@@ -1,11 +1,16 @@
 require('dotenv').config();
 
 const express = require('express');
+const mongoose = require('mongoose');
 const createBoardingRoomsRouter = require('./routes/boardingRooms');
+const BoardingRoom = require('./models/BoardingRoomsModel');
 
 const PORT = process.env.PORT || 3000;
 
-function createApp({ apiKey = process.env.API_KEY } = {}) {
+function createApp({
+  apiKey = process.env.API_KEY,
+  roomModel = BoardingRoom,
+} = {}) {
   const app = express();
 
   app.use(express.json());
@@ -18,6 +23,7 @@ function createApp({ apiKey = process.env.API_KEY } = {}) {
       resource: 'Kamar Kos',
       endpoints: [
         'GET /boarding-rooms',
+        'GET /boarding-rooms/summary',
         'GET /boarding-rooms/:id',
         'POST /boarding-rooms',
         'PUT /boarding-rooms/:id',
@@ -27,7 +33,7 @@ function createApp({ apiKey = process.env.API_KEY } = {}) {
     });
   });
 
-  app.use('/boarding-rooms', createBoardingRoomsRouter({ apiKey }));
+  app.use('/boarding-rooms', createBoardingRoomsRouter({ apiKey, roomModel }));
 
   app.use((req, res) => {
     res.status(404).json({
@@ -45,6 +51,20 @@ function createApp({ apiKey = process.env.API_KEY } = {}) {
         data: null,
       });
     }
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({
+        status: 'error',
+        message: Object.values(err.errors)[0].message,
+        data: null,
+      });
+    }
+    if (err.code === 11000) {
+      return res.status(409).json({
+        status: 'error',
+        message: 'Nomor kamar atau id sudah terdaftar',
+        data: null,
+      });
+    }
 
     console.error(err.stack);
     return res.status(500).json({
@@ -57,13 +77,27 @@ function createApp({ apiKey = process.env.API_KEY } = {}) {
   return app;
 }
 
+async function startServer() {
+  if (!process.env.DB_URI) {
+    throw new Error('DB_URI belum dikonfigurasi');
+  }
+
+  await mongoose.connect(process.env.DB_URI);
+  const app = createApp();
+  return app.listen(PORT, () => {
+    console.log(`Server berjalan di http://localhost:${PORT}`);
+  });
+}
+
 const app = createApp();
 
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Server berjalan di http://localhost:${PORT}`);
+  startServer().catch((err) => {
+    console.error(`Gagal memulai server MongoDB (${err.name || 'Error'}${err.code ? `, kode ${err.code}` : ''})`);
+    process.exitCode = 1;
   });
 }
 
 module.exports = app;
 module.exports.createApp = createApp;
+module.exports.startServer = startServer;

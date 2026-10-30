@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const { once } = require('node:events');
 const test = require('node:test');
 const appModule = require('../app');
+const initialRooms = require('../seed');
 
 const API_KEY = 'test-api-key';
 const validRoom = {
@@ -26,8 +27,65 @@ async function closeServer(server) {
   await once(server, 'close');
 }
 
+function createMemoryRoomModel() {
+  let rooms = structuredClone(initialRooms);
+  const matches = (room, filter) => Object.entries(filter).every(
+    ([key, value]) => room[key] === value
+  );
+  const query = (resolve) => {
+    let sortBy;
+    const result = {
+      select() {
+        return result;
+      },
+      sort(value) {
+        sortBy = value;
+        return result;
+      },
+      lean() {
+        return Promise.resolve().then(() => resolve(sortBy));
+      },
+    };
+    return result;
+  };
+
+  return {
+    find(filter = {}) {
+      return query(() => rooms.filter((room) => matches(room, filter)).map((room) => ({ ...room })));
+    },
+    findOne(filter = {}) {
+      return query((sortBy) => {
+        const found = rooms.filter((room) => matches(room, filter));
+        if (sortBy) found.sort((a, b) => (a.id - b.id) * sortBy.id);
+        return found[0] ? { ...found[0] } : null;
+      });
+    },
+    async create(room) {
+      const created = structuredClone(room);
+      rooms.push(created);
+      return created;
+    },
+    findOneAndUpdate(filter, update) {
+      return query(() => {
+        const index = rooms.findIndex((room) => matches(room, filter));
+        if (index === -1) return null;
+        rooms[index] = { ...rooms[index], ...update };
+        return { ...rooms[index] };
+      });
+    },
+    async findOneAndDelete(filter) {
+      const index = rooms.findIndex((room) => matches(room, filter));
+      if (index === -1) return null;
+      return rooms.splice(index, 1)[0];
+    },
+  };
+}
+
 test('boarding room API supports discovery, filtering, validation, and CRUD', async (t) => {
-  const app = appModule.createApp({ apiKey: API_KEY });
+  const app = appModule.createApp({
+    apiKey: API_KEY,
+    roomModel: createMemoryRoomModel(),
+  });
   const { server, baseUrl } = await startServer(app);
   t.after(() => closeServer(server));
 
@@ -49,6 +107,16 @@ test('boarding room API supports discovery, filtering, validation, and CRUD', as
   const listResponse = await request('/boarding-rooms');
   assert.equal(listResponse.status, 200);
   assert.equal((await listResponse.json()).length, 3);
+
+  const summaryResponse = await request('/boarding-rooms/summary');
+  assert.equal(summaryResponse.status, 200);
+  assert.deepEqual((await summaryResponse.json()).data, {
+    totalKamar: 3,
+    jumlahTersedia: 2,
+    jumlahTerisi: 1,
+    jumlahPerTipe: { putra: 1, putri: 1, campur: 1 },
+    potensiPendapatanBulanan: 2050000,
+  });
 
   const filteredResponse = await request('/boarding-rooms?tipe=putri');
   assert.deepEqual(
@@ -97,6 +165,11 @@ test('boarding room API supports discovery, filtering, validation, and CRUD', as
   assert.equal(createResponse.status, 201);
   const created = (await createResponse.json()).data;
   assert.equal(created.id, 4);
+  const updatedSummaryResponse = await request('/boarding-rooms/summary');
+  assert.equal(
+    (await updatedSummaryResponse.json()).data.potensiPendapatanBulanan,
+    3050000
+  );
 
   const updateResponse = await request(`/boarding-rooms/${created.id}`, {
     method: 'PUT',
@@ -134,7 +207,10 @@ test('boarding room API supports discovery, filtering, validation, and CRUD', as
 });
 
 test('write operations report missing API key configuration', async (t) => {
-  const app = appModule.createApp({ apiKey: '' });
+  const app = appModule.createApp({
+    apiKey: '',
+    roomModel: createMemoryRoomModel(),
+  });
   const { server, baseUrl } = await startServer(app);
   t.after(() => closeServer(server));
 
