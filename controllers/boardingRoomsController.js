@@ -1,4 +1,24 @@
 const BoardingRoom = require('../models/BoardingRoomsModel');
+const MAX_LIMIT = 50;
+const ROOM_FIELDS = new Set([
+  '_id',
+  'id',
+  'nomorKamar',
+  'tipe',
+  'hargaPerBulan',
+  'fasilitas',
+  'tersedia',
+  'createdAt',
+  'updatedAt',
+]);
+const SORT_FIELDS = new Set([
+  '_id',
+  'id',
+  'nomorKamar',
+  'tipe',
+  'hargaPerBulan',
+  'tersedia',
+]);
 
 function sendError(res, status, message) {
   return res.status(status).json({ status: 'error', message, data: null });
@@ -48,6 +68,50 @@ function withoutMongoFields(room) {
   return result;
 }
 
+function positiveIntegerQuery(value, name, defaultValue) {
+  if (value === undefined) return defaultValue;
+  if (typeof value !== 'string' || !/^\d+$/.test(value)) {
+    return { error: `Query ${name} harus berupa bilangan bulat positif` };
+  }
+
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    return { error: `Query ${name} harus berupa bilangan bulat positif` };
+  }
+  return parsed;
+}
+
+function parseFields(value) {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') {
+    return { error: 'Query fields harus berupa daftar field yang dipisahkan koma' };
+  }
+
+  const fields = value.split(',').map((field) => field.trim());
+  if (
+    fields.some((field) => !field || !ROOM_FIELDS.has(field))
+    || new Set(fields).size !== fields.length
+  ) {
+    return { error: 'Query fields berisi field yang tidak valid atau duplikat' };
+  }
+
+  return Object.fromEntries(fields.map((field) => [field, 1]));
+}
+
+function parseSort(value) {
+  if (value === undefined) return { id: 1 };
+  if (typeof value !== 'string' || !value) {
+    return { error: 'Query sort harus berisi nama field' };
+  }
+
+  const descending = value.startsWith('-');
+  const field = descending ? value.slice(1) : value;
+  if (!SORT_FIELDS.has(field)) {
+    return { error: 'Query sort menggunakan field yang tidak didukung' };
+  }
+  return { [field]: descending ? -1 : 1 };
+}
+
 function createBoardingRoomsController(roomModel = BoardingRoom) {
   return {
     getRooms() {
@@ -56,16 +120,58 @@ function createBoardingRoomsController(roomModel = BoardingRoom) {
 
     async list(req, res) {
       const { tipe } = req.query;
+      if (tipe !== undefined && typeof tipe !== 'string') {
+        return sendError(res, 400, 'Query tipe harus berupa satu nilai');
+      }
+
+      const page = positiveIntegerQuery(req.query.page, 'page', 1);
+      if (page.error) return sendError(res, 400, page.error);
+
+      const requestedLimit = positiveIntegerQuery(req.query.limit, 'limit', 10);
+      if (requestedLimit.error) return sendError(res, 400, requestedLimit.error);
+      const limit = Math.min(requestedLimit, MAX_LIMIT);
+      const skip = (page - 1) * limit;
+      if (!Number.isSafeInteger(skip)) {
+        return sendError(res, 400, 'Query page terlalu besar');
+      }
+
+      const sort = parseSort(req.query.sort);
+      if (sort.error) return sendError(res, 400, sort.error);
+
+      const projection = parseFields(req.query.fields);
+      if (projection && projection.error) {
+        return sendError(res, 400, projection.error);
+      }
+
       const filter = tipe === undefined ? {} : { tipe };
-      const data = await roomModel.find(filter).select('-_id -__v').lean();
-      return res.json(data);
+      let query = roomModel.find(filter);
+      query = query.sort(sort).skip(skip).limit(limit);
+      query = projection
+        ? query.select(projection)
+        : query.select('-_id -__v');
+
+      const [data, total] = await Promise.all([
+        query.lean(),
+        roomModel.countDocuments(filter),
+      ]);
+      return res.json({
+        data,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
     },
 
     async getById(req, res) {
       const id = Number(req.params.id);
-      const room = Number.isInteger(id)
-        ? await roomModel.findOne({ id }).select('-_id -__v').lean()
-        : undefined;
+      if (!Number.isSafeInteger(id) || id < 1) {
+        return sendError(res, 400, 'Parameter id harus berupa bilangan bulat positif');
+      }
+
+      const room = await roomModel.findOne({ id }).select('-_id -__v').lean();
       if (!room) {
         return sendError(res, 404, `Data dengan id ${req.params.id} tidak ditemukan`);
       }
@@ -105,7 +211,7 @@ function createBoardingRoomsController(roomModel = BoardingRoom) {
       const updated = await roomModel.findOneAndUpdate(
         { id },
         validation.data,
-        { new: true, runValidators: true }
+        { returnDocument: 'after', runValidators: true }
       ).select('-_id -__v').lean();
       if (!updated) {
         return sendError(res, 404, `Data dengan id ${req.params.id} tidak ditemukan`);

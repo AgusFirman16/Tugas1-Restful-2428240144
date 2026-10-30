@@ -34,7 +34,11 @@ Endpoint GET dapat digunakan tanpa API key. Semua operasi tulis pada
 | Method | Path | Keterangan |
 | --- | --- | --- |
 | GET | `/` | Identitas API dan daftar endpoint |
-| GET | `/boarding-rooms` | Daftar semua kamar |
+| GET | `/boarding-rooms` | Daftar kamar (10 data per halaman secara default) |
+| GET | `/boarding-rooms?page=3` | Mengambil halaman tertentu |
+| GET | `/boarding-rooms?limit=999999` | Mengatur jumlah data (maksimum 50) |
+| GET | `/boarding-rooms?sort=-nomorKamar` | Mengurutkan field (`-` berarti menurun) |
+| GET | `/boarding-rooms?fields=id,nomorKamar` | Memilih field yang dikembalikan |
 | GET | `/boarding-rooms/summary` | Ringkasan jumlah kamar, ketersediaan, tipe, dan potensi pendapatan bulanan |
 | GET | `/boarding-rooms?tipe=putri` | Filter berdasarkan tipe (`putra`, `putri`, `campur`) |
 | GET | `/boarding-rooms/:id` | Detail kamar |
@@ -61,9 +65,17 @@ default ke `true` jika tidak diberikan.
 Ringkasan menghitung potensi pendapatan bulanan dari harga kamar yang tersedia
 dan membaca data terbaru dari MongoDB.
 
-Respons GET mempertahankan bentuk data resource yang sudah digunakan API.
-Operasi tulis yang berhasil mengembalikan objek `{ status, message, data }`;
-kesalahan API juga menggunakan `{ status, message, data: null }`.
+Daftar kamar mengembalikan objek dengan `data` dan `pagination` (`page`,
+`limit`, `total`, `totalPages`). Parameter `page` harus bilangan bulat positif;
+`limit` default 10 dan dibatasi maksimum 50. `sort` menerima satu field yang
+didukung, dengan awalan `-` untuk urutan menurun. `fields` berisi nama field
+yang dipisahkan koma. Filter `tipe` yang tidak cocok menghasilkan daftar kosong
+dan total 0. Filter `prodi` pada contoh mahasiswa tidak berlaku untuk resource
+kamar kos; gunakan `tipe`, misalnya `?tipe=putri`.
+
+Detail kamar tetap dikembalikan sebagai objek. Operasi tulis yang berhasil
+mengembalikan objek `{ status, message, data }`; kesalahan API juga menggunakan
+`{ status, message, data: null }`.
 
 ## Penyimpanan
 

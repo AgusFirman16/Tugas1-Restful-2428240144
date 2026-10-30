@@ -23,6 +23,8 @@ function createApp({
       resource: 'Kamar Kos',
       endpoints: [
         'GET /boarding-rooms',
+        'GET /boarding-rooms?page=1&limit=10',
+        'GET /boarding-rooms?sort=nomorKamar&fields=id,nomorKamar',
         'GET /boarding-rooms/summary',
         'GET /boarding-rooms/:id',
         'POST /boarding-rooms',
